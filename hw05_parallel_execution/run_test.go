@@ -134,7 +134,7 @@ func TestRun_HomeWork(t *testing.T) {
 			if i%3 != 0 {
 				tasks[i] = func() error { return nil }
 			} else {
-				tasks[i] = func() error { return fmt.Errorf("Ups!!!") }
+				tasks[i] = func() error { return fmt.Errorf("uupps") }
 			}
 		}
 
