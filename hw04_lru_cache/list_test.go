@@ -48,4 +48,56 @@ func TestList(t *testing.T) {
 		}
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
 	})
+
+	t.Run("front&back equal for single item list", func(t *testing.T) {
+		l := NewList()
+		node := l.PushFront("10")
+		require.Same(t, node, l.Front())
+		require.Same(t, node, l.Back())
+	})
+
+	t.Run("front&back after 2 PushFront", func(t *testing.T) {
+		l := NewList()
+		n1 := l.PushFront("10")
+		n2 := l.PushFront("20")
+		require.Same(t, n2, l.Front())
+		require.Same(t, n1, l.Back())
+		require.Same(t, l.Back().Prev, l.Front())
+		require.Same(t, l.Front().Next, l.Back())
+	})
+
+	t.Run("front&back after 2 PushBack", func(t *testing.T) {
+		l := NewList()
+		n1 := l.PushBack("30")
+		n2 := l.PushBack("40")
+		require.Same(t, n1, l.Front())
+		require.Same(t, n2, l.Back())
+		require.Same(t, l.Back().Prev, l.Front())
+		require.Same(t, l.Front().Next, l.Back())
+	})
+
+	t.Run("remove front", func(t *testing.T) {
+		l := NewList()
+		n1 := l.PushFront("10")
+		n2 := l.PushFront("20")
+
+		l.Remove(n2)
+		require.Same(t, n1, l.Front())
+		require.Same(t, n1, l.Back())
+		require.Nil(t, n1.Prev)
+		require.Nil(t, n1.Next)
+		require.Equal(t, 1, l.Len())
+	})
+
+	t.Run("remove back", func(t *testing.T) {
+		l := NewList()
+		l.PushFront(1)
+		n2 := l.PushFront("30")
+		l.Remove(n2)
+
+		n1 := l.Back()
+		require.Equal(t, 1, n1.Value)
+		require.Same(t, n1, l.Front())
+		require.Equal(t, 1, l.Len())
+	})
 }
