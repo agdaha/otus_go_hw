@@ -11,33 +11,6 @@ var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
 
 type Task func() error
 
-func runWorkers(cancel chan struct{}, taskCh chan Task, wg *sync.WaitGroup, n int, limit *int64, unlim bool) {
-	var isCancelled int32 // статус канала cancel 0 = в работе, 1 = остановлен
-
-	for i := 0; i < n; i++ {
-		go func() {
-			defer wg.Done()
-			for task := range taskCh {
-				select {
-				case <-cancel:
-					return
-				default:
-					err := task()
-					if err != nil {
-						atomic.AddInt64(limit, -1)
-					}
-					if atomic.LoadInt64(limit) <= 0 && !unlim {
-						if atomic.CompareAndSwapInt32(&isCancelled, 0, 1) {
-							close(cancel)
-						}
-						return
-					}
-				}
-			}
-		}()
-	}
-}
-
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
 	if n <= 0 {
@@ -48,30 +21,42 @@ func Run(tasks []Task, n, m int) error {
 		return nil
 	}
 
-	errLimit := int64(m)
-	ignoreErrorLimit := m <= 0 // игнорировать лимит ошибок если он <= 0
+	var errCount int64
+	ignoreErrorLimit := m <= 0
 
-	taskCh := make(chan Task)
-	cancel := make(chan struct{})
+	taskCh := make(chan Task, len(tasks))
 
 	var wg sync.WaitGroup
 	wg.Add(n)
 
-	runWorkers(cancel, taskCh, &wg, n, &errLimit, ignoreErrorLimit)
+	for i := 0; i < n; i++ {
+		go func(errCount *int64) {
+			defer wg.Done()
 
-pusher:
+			for task := range taskCh {
+				if atomic.LoadInt64(errCount) >= int64(m) && !ignoreErrorLimit {
+					return
+				}
+				if err := task(); err != nil {
+					if ignoreErrorLimit {
+						continue
+					}
+					if atomic.AddInt64(errCount, 1) >= int64(m) {
+						return
+					}
+				}
+			}
+		}(&errCount)
+	}
+
 	for _, task := range tasks {
-		select {
-		case <-cancel:
-			break pusher
-		case taskCh <- task:
-		}
+		taskCh <- task
 	}
 	close(taskCh)
 
 	wg.Wait()
 
-	if errLimit <= 0 && !ignoreErrorLimit {
+	if errCount >= int64(m) && !ignoreErrorLimit {
 		return ErrErrorsLimitExceeded
 	}
 
