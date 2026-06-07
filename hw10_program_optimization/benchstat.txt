@@ -1,0 +1,28 @@
+goos: linux
+goarch: amd64
+pkg: github.com/agdaha/otus_go_hw/hw10_program_optimization
+cpu: 12th Gen Intel(R) Core(TM) i5-12450H
+                 │   new.txt   │
+                 │   sec/op    │
+GetDomainStat-12   143.7m ± 1%
+
+                 │   new.txt    │
+                 │     B/op     │
+GetDomainStat-12   20.66Mi ± 0%
+
+                 │   new.txt   │
+                 │  allocs/op  │
+GetDomainStat-12   622.2k ± 0%
+
+pkg: github.com/fixme_my_friend/hw10_program_optimization
+                 │   old.txt   │
+                 │   sec/op    │
+GetDomainStat-12   290.3m ± 2%
+
+                 │   old.txt    │
+                 │     B/op     │
+GetDomainStat-12   328.0Mi ± 0%
+
+                 │   old.txt   │
+                 │  allocs/op  │
+GetDomainStat-12   3.044M ± 0%

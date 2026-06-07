@@ -1,0 +1,16 @@
+goos: linux
+goarch: amd64
+pkg: github.com/fixme_my_friend/hw10_program_optimization
+cpu: 12th Gen Intel(R) Core(TM) i5-12450H
+BenchmarkGetDomainStat-12    	       4	 312158566 ns/op	343925456 B/op	 3044382 allocs/op
+BenchmarkGetDomainStat-12    	       4	 285716465 ns/op	343925372 B/op	 3044380 allocs/op
+BenchmarkGetDomainStat-12    	       4	 289543445 ns/op	343943940 B/op	 3044382 allocs/op
+BenchmarkGetDomainStat-12    	       4	 289361277 ns/op	343934692 B/op	 3044382 allocs/op
+BenchmarkGetDomainStat-12    	       4	 292667938 ns/op	343934620 B/op	 3044381 allocs/op
+BenchmarkGetDomainStat-12    	       4	 287976830 ns/op	343971740 B/op	 3044385 allocs/op
+BenchmarkGetDomainStat-12    	       4	 294207907 ns/op	343934692 B/op	 3044382 allocs/op
+BenchmarkGetDomainStat-12    	       4	 285839798 ns/op	343962472 B/op	 3044384 allocs/op
+BenchmarkGetDomainStat-12    	       4	 291006337 ns/op	343943952 B/op	 3044383 allocs/op
+BenchmarkGetDomainStat-12    	       4	 292610866 ns/op	343934624 B/op	 3044381 allocs/op
+PASS
+ok  	github.com/fixme_my_friend/hw10_program_optimization	26.420s
