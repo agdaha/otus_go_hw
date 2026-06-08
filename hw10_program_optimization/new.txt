@@ -1,0 +1,16 @@
+goos: linux
+goarch: amd64
+pkg: github.com/agdaha/otus_go_hw/hw10_program_optimization
+cpu: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz
+BenchmarkGetDomainStat-8   	      20	  57133609 ns/op	24314053 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56513360 ns/op	24314050 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56219494 ns/op	24314048 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  55880000 ns/op	24314045 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56859091 ns/op	24314049 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56763424 ns/op	24314048 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56394332 ns/op	24314046 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56526935 ns/op	24314046 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56698142 ns/op	24314050 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56393779 ns/op	24314049 B/op	  722152 allocs/op
+PASS
+ok  	github.com/agdaha/otus_go_hw/hw10_program_optimization	13.218s
