@@ -1,16 +1,16 @@
 goos: linux
 goarch: amd64
 pkg: github.com/agdaha/otus_go_hw/hw10_program_optimization
-cpu: 12th Gen Intel(R) Core(TM) i5-12450H
-BenchmarkGetDomainStat-12    	       7	 145281081 ns/op	21660752 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       8	 143141410 ns/op	21660723 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 142922188 ns/op	21660745 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 144321129 ns/op	21660749 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 143052472 ns/op	21660747 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 143370590 ns/op	21660745 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 143931191 ns/op	21660749 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 144189059 ns/op	21660765 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 147307981 ns/op	21660745 B/op	  622159 allocs/op
-BenchmarkGetDomainStat-12    	       7	 143477793 ns/op	21660749 B/op	  622159 allocs/op
+cpu: Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz
+BenchmarkGetDomainStat-8   	      20	  57133609 ns/op	24314053 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56513360 ns/op	24314050 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56219494 ns/op	24314048 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  55880000 ns/op	24314045 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56859091 ns/op	24314049 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56763424 ns/op	24314048 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56394332 ns/op	24314046 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56526935 ns/op	24314046 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56698142 ns/op	24314050 B/op	  722152 allocs/op
+BenchmarkGetDomainStat-8   	      19	  56393779 ns/op	24314049 B/op	  722152 allocs/op
 PASS
-ok  	github.com/agdaha/otus_go_hw/hw10_program_optimization	15.571s
+ok  	github.com/agdaha/otus_go_hw/hw10_program_optimization	13.218s
