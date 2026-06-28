@@ -2,6 +2,7 @@ package hw09structvalidator
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -36,25 +37,148 @@ type (
 	}
 )
 
+func validUUID() string { return "12345678-1234-1234-1234-123456789012" }
+
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		in          interface{}
 		expectedErr error
 	}{
 		{
-			// Place your code here.
+			in: User{
+				ID:     validUUID(),
+				Name:   "Alice",
+				Age:    25,
+				Email:  "alice@example.com",
+				Role:   "admin",
+				Phones: []string{"12345678901"},
+			},
+			expectedErr: nil,
 		},
-		// ...
-		// Place your code here.
+		{
+			in:          App{Version: "1.0.0"},
+			expectedErr: nil,
+		},
+		{
+			in:          Token{Header: []byte("h"), Payload: []byte("p"), Signature: []byte("s")},
+			expectedErr: nil,
+		},
+		{
+			in:          Response{Code: 200, Body: "OK"},
+			expectedErr: nil,
+		},
+		{
+			in:          Response{Code: 404},
+			expectedErr: nil,
+		},
+		{
+			in: User{
+				ID:    "too-short",
+				Age:   25,
+				Email: "a@b.c",
+				Role:  "admin",
+			},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in: User{
+				ID:    validUUID(),
+				Age:   10,
+				Email: "a@b.c",
+				Role:  "admin",
+			},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in: User{
+				ID:    validUUID(),
+				Age:   99,
+				Email: "a@b.c",
+				Role:  "admin",
+			},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in: User{
+				ID:    validUUID(),
+				Age:   25,
+				Email: "not-an-email",
+				Role:  "admin",
+			},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in: User{
+				ID:    validUUID(),
+				Age:   25,
+				Email: "a@b.c",
+				Role:  "superuser",
+			},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in: User{
+				ID:     validUUID(),
+				Age:    25,
+				Email:  "a@b.c",
+				Role:   "admin",
+				Phones: []string{"123"},
+			},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in:          Response{Code: 301},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in:          App{Version: "v2"},
+			expectedErr: ValidationErrors{},
+		},
+		{
+			in:          42,
+			expectedErr: ErrNotStruct,
+		},
 	}
 
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
 			tt := tt
 			t.Parallel()
+			err := Validate(tt.in)
 
-			// Place your code here.
-			_ = tt
+			switch {
+			case tt.expectedErr == nil:
+				if err != nil {
+					t.Errorf("expected no error, got: %v", err)
+				}
+
+			case errors.Is(tt.expectedErr, ErrNotStruct):
+				if !errors.Is(err, ErrNotStruct) {
+					t.Errorf("expected ErrNotStruct, got: %v", err)
+				}
+
+			default:
+				var ve ValidationErrors
+				if !errors.As(err, &ve) {
+					t.Errorf("expected ValidationErrors, got %T: %v", err, err)
+				}
+			}
 		})
+	}
+}
+
+func TestValidateSummaryAllErrors(t *testing.T) {
+	type S struct {
+		A string `validate:"len:5"`
+		B int    `validate:"min:10"`
+		C string `validate:"in:x,y"`
+	}
+	var ve ValidationErrors
+	err := Validate(S{A: "x", B: 1, C: "z"})
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected ValidationErrors, got %T: %v", err, err)
+	}
+	if len(ve) != 3 {
+		t.Errorf("expected 3 validation errors, got %d: %v", len(ve), ve)
 	}
 }
