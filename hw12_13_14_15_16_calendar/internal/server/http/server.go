@@ -2,30 +2,52 @@ package internalhttp
 
 import (
 	"context"
+	"errors"
+	"net"
+	"net/http"
+	"time"
 )
 
-type Server struct { // TODO
+type Logger interface {
+	Info(msg string)
+	Warn(msg string)
+	Error(msg string)
 }
 
-type Logger interface { // TODO
+// Application will be expanded with business-logic methods in hw13.
+type Application interface{}
+
+type Server struct {
+	server *http.Server
+	logger Logger
+	app    Application
 }
 
-type Application interface { // TODO
+func NewServer(logger Logger, app Application, host, port string) *Server {
+	s := &Server{logger: logger, app: app}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", rootHandler)
+	s.server = &http.Server{
+		Addr:              net.JoinHostPort(host, port),
+		Handler:           loggingMiddleware(logger)(mux),
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+	return s
 }
 
-func NewServer(logger Logger, app Application) *Server {
-	return &Server{}
+func rootHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("Hi!"))
 }
 
-func (s *Server) Start(ctx context.Context) error {
-	// TODO
-	<-ctx.Done()
+func (s *Server) Start(_ context.Context) error {
+	s.logger.Info("http server listening on " + s.server.Addr)
+	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
 	return nil
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	// TODO
-	return nil
+	return s.server.Shutdown(ctx)
 }
-
-// TODO

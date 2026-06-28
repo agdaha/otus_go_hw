@@ -3,21 +3,24 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/app"
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/app"
+	"github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/config"
+	"github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/logger"
+	internalhttp "github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/server/http"
+	memorystorage "github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/storage/memory"
+	sqlstorage "github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/storage/sql"
 )
 
 var configFile string
 
 func init() {
-	flag.StringVar(&configFile, "config", "/etc/calendar/config.toml", "Path to configuration file")
+	flag.StringVar(&configFile, "config", "/etc/calendar/config.yaml", "Path to configuration file")
 }
 
 func main() {
@@ -28,13 +31,18 @@ func main() {
 		return
 	}
 
-	config := NewConfig()
-	logg := logger.New(config.Logger.Level)
+	cfg, err := config.NewConfig(configFile)
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
 
-	storage := memorystorage.New()
-	calendar := app.New(logg, storage)
+	logg := logger.New(cfg.Logger.Level)
 
-	server := internalhttp.NewServer(logg, calendar)
+	stor, closeStorage := buildStorage(cfg, logg)
+	defer closeStorage()
+
+	calendar := app.New(logg, stor)
+	server := internalhttp.NewServer(logg, calendar, cfg.HTTP.Host, cfg.HTTP.Port)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -42,20 +50,36 @@ func main() {
 
 	go func() {
 		<-ctx.Done()
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-		defer cancel()
-
-		if err := server.Stop(ctx); err != nil {
-			logg.Error("failed to stop http server: " + err.Error())
+		shutCtx, shutCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer shutCancel()
+		if err := server.Stop(shutCtx); err != nil {
+			logg.Error("http server stop: " + err.Error())
 		}
 	}()
 
 	logg.Info("calendar is running...")
 
 	if err := server.Start(ctx); err != nil {
-		logg.Error("failed to start http server: " + err.Error())
+		logg.Error("http server start: " + err.Error())
 		cancel()
 		os.Exit(1) //nolint:gocritic
 	}
+}
+
+func buildStorage(cfg config.Config, logg *logger.Logger) (app.Storage, func()) {
+	if cfg.Storage.Type == "sql" {
+		s := sqlstorage.New(cfg.DB.DSN)
+		connectCtx, connectCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := s.Connect(connectCtx); err != nil {
+			connectCancel()
+			log.Fatalf("db connect: %v", err)
+		}
+		connectCancel()
+		return s, func() {
+			if err := s.Close(context.Background()); err != nil {
+				logg.Error("db close: " + err.Error())
+			}
+		}
+	}
+	return memorystorage.New(), func() {}
 }
