@@ -13,22 +13,12 @@ type Logger interface {
 	Error(msg string)
 	Debug(msg string)
 }
-
-type Storage interface {
-	Add(ctx context.Context, event storage.Event) error
-	Update(ctx context.Context, event storage.Event) error
-	Delete(ctx context.Context, id string) error
-	ListDay(ctx context.Context, date time.Time) ([]storage.Event, error)
-	ListWeek(ctx context.Context, start time.Time) ([]storage.Event, error)
-	ListMonth(ctx context.Context, start time.Time) ([]storage.Event, error)
-}
-
 type App struct {
 	logger  Logger
-	storage Storage
+	storage storage.Storage
 }
 
-func New(logger Logger, storage Storage) *App {
+func New(logger Logger, storage storage.Storage) *App {
 	return &App{logger: logger, storage: storage}
 }
 

@@ -5,6 +5,11 @@ http:
   host: localhost
   port: "8080"
 
+grpc:
+  host: localhost
+  port: "8081"
+
+
 storage:
   type: memory
 

@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/storage"
 )
 
 type Logger interface {
@@ -15,7 +17,14 @@ type Logger interface {
 }
 
 // Application will be expanded with business-logic methods in hw13.
-type Application interface{}
+type Application interface {
+	CreateEvent(ctx context.Context, event storage.Event) error
+	UpdateEvent(ctx context.Context, event storage.Event) error
+	DeleteEvent(ctx context.Context, id string) error
+	ListDayEvents(ctx context.Context, date time.Time) ([]storage.Event, error)
+	ListWeekEvents(ctx context.Context, start time.Time) ([]storage.Event, error)
+	ListMonthEvents(ctx context.Context, start time.Time) ([]storage.Event, error)
+}
 
 type Server struct {
 	server *http.Server
@@ -25,8 +34,15 @@ type Server struct {
 
 func NewServer(logger Logger, app Application, host, port string) *Server {
 	s := &Server{logger: logger, app: app}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", rootHandler)
+	mux.HandleFunc("POST /events", s.handleCreateEvent)
+	mux.HandleFunc("PUT /events", s.handleUpdateEvent)
+	mux.HandleFunc("DELETE /events/{id}", s.handleDeleteEvent)
+	mux.HandleFunc("GET /events/day", s.handleListDayEvents)
+	mux.HandleFunc("GET /events/week", s.handleListWeekEvents)
+	mux.HandleFunc("GET /events/month", s.handleListMonthEvents)
+
 	s.server = &http.Server{
 		Addr:              net.JoinHostPort(host, port),
 		Handler:           loggingMiddleware(logger)(mux),
@@ -35,10 +51,10 @@ func NewServer(logger Logger, app Application, host, port string) *Server {
 	return s
 }
 
-func rootHandler(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("Hi!"))
-}
+// func rootHandler(w http.ResponseWriter, _ *http.Request) {
+// 	w.WriteHeader(http.StatusOK)
+// 	_, _ = w.Write([]byte("Hi!"))
+// }
 
 func (s *Server) Start(_ context.Context) error {
 	s.logger.Info("http server listening on " + s.server.Addr)

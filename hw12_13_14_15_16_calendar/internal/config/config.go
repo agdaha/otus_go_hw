@@ -3,12 +3,13 @@ package config
 import (
 	"os"
 
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3" //nolint: depguard
 )
 
 type Config struct {
 	Logger  LoggerConf  `yaml:"logger"`
 	HTTP    HTTPConf    `yaml:"http"`
+	GRPC    GRPCConf    `yaml:"grpc"`
 	Storage StorageConf `yaml:"storage"`
 	DB      DBConf      `yaml:"db"`
 }
@@ -22,7 +23,12 @@ type HTTPConf struct {
 	Port string `yaml:"port"`
 }
 
-// selects the storage backend: "memory" (default) or "sql".
+type GRPCConf struct {
+	Host string `yaml:"host"`
+	Port string `yaml:"port"`
+}
+
+// StorageConf selects the storage backend: "memory" (default) or "sql".
 type StorageConf struct {
 	Type string `yaml:"type"`
 }
