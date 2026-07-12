@@ -1,4 +1,4 @@
-package config
+package main
 
 import (
 	"os"
@@ -7,25 +7,15 @@ import (
 )
 
 type Config struct {
-	Logger  LoggerConf  `yaml:"logger"`
-	HTTP    HTTPConf    `yaml:"http"`
-	GRPC    GRPCConf    `yaml:"grpc"`
-	Storage StorageConf `yaml:"storage"`
-	DB      DBConf      `yaml:"db"`
+	Logger    LoggerConf    `yaml:"logger"`
+	Storage   StorageConf   `yaml:"storage"`
+	DB        DBConf        `yaml:"db"`
+	RMQ       RMQConf       `yaml:"rmq"`
+	Scheduler SchedulerConf `yaml:"scheduler"`
 }
 
 type LoggerConf struct {
 	Level string `yaml:"level"`
-}
-
-type HTTPConf struct {
-	Host string `yaml:"host"`
-	Port string `yaml:"port"`
-}
-
-type GRPCConf struct {
-	Host string `yaml:"host"`
-	Port string `yaml:"port"`
 }
 
 type StorageConf struct {
@@ -34,6 +24,18 @@ type StorageConf struct {
 
 type DBConf struct {
 	DSN string `yaml:"dsn"`
+}
+
+type RMQConf struct {
+	DSN        string `yaml:"dsn"`
+	Exchange   string `yaml:"exchange"`
+	Queue      string `yaml:"queue"`
+	RoutingKey string `yaml:"routingKey"`
+}
+
+type SchedulerConf struct {
+	ScanInterval string `yaml:"scanInterval"`
+	Retention    string `yaml:"retention"`
 }
 
 func NewConfig(path string) (Config, error) {

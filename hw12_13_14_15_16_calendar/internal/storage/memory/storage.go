@@ -9,12 +9,16 @@ import (
 )
 
 type Storage struct {
-	mu     sync.RWMutex
-	events map[string]storage.Event
+	mu       sync.RWMutex
+	events   map[string]storage.Event
+	notified map[string]bool
 }
 
 func New() *Storage {
-	return &Storage{events: make(map[string]storage.Event)}
+	return &Storage{
+		events:   make(map[string]storage.Event),
+		notified: make(map[string]bool),
+	}
 }
 
 func (s *Storage) Add(_ context.Context, event storage.Event) error {
@@ -54,6 +58,7 @@ func (s *Storage) Delete(_ context.Context, id string) error {
 		return storage.ErrEventNotFound
 	}
 	delete(s.events, id)
+	delete(s.notified, id)
 	return nil
 }
 
@@ -78,6 +83,45 @@ func (s *Storage) ListMonth(_ context.Context, start time.Time) ([]storage.Event
 	return s.listRange(start, start.AddDate(0, 1, 0)), nil
 }
 
+func (s *Storage) EventsToNotify(_ context.Context, now time.Time) ([]storage.Event, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []storage.Event
+	for _, e := range s.events {
+		if e.NotifyAt <= 0 || s.notified[e.ID] {
+			continue
+		}
+		if !e.StartAt.Add(-e.NotifyAt).After(now) {
+			result = append(result, e)
+		}
+	}
+	return result, nil
+}
+
+func (s *Storage) MarkNotified(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.notified[id] = true
+	return nil
+}
+
+func (s *Storage) DeleteOldEvents(_ context.Context, before time.Time) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var n int64
+	for id, e := range s.events {
+		if e.StartAt.Before(before) {
+			delete(s.events, id)
+			delete(s.notified, id)
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (s *Storage) listRange(from, to time.Time) []storage.Event {
 	result := make([]storage.Event, 0, len(s.events))
 	for _, e := range s.events {
@@ -88,7 +132,6 @@ func (s *Storage) listRange(from, to time.Time) []storage.Event {
 	return result
 }
 
-// overlaps reports whether two events occupy the same time slot.
 func overlaps(a, b storage.Event) bool {
 	aEnd := a.StartAt.Add(a.Duration)
 	bEnd := b.StartAt.Add(b.Duration)

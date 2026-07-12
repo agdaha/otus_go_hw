@@ -1,0 +1,18 @@
+logger:
+  level: info
+
+storage:
+  type: sql
+
+db:
+  dsn: "host=localhost port=5435 user=postgres password=password dbname=backend sslmode=disable"
+
+rmq:
+  dsn: "amqp://rabbit:password@localhost:5672/"
+  exchange: calendar.notifications
+  queue: notifications
+  routingKey: notifications
+
+scheduler:
+  scanInterval: 1m
+  retention: 8760h

@@ -97,6 +97,46 @@ func TestListMonth(t *testing.T) {
 	require.Len(t, events, 31)
 }
 
+func TestEventsToNotify(t *testing.T) {
+	s := New()
+	ctx := context.Background()
+	now := time.Now()
+
+	due := storage.Event{ID: "due", UserID: "u1", StartAt: now.Add(time.Minute), NotifyAt: 10 * time.Minute}
+	notDue := storage.Event{ID: "not-due", UserID: "u1", StartAt: now.Add(time.Hour), NotifyAt: time.Minute}
+	noNotify := storage.Event{ID: "no-notify", UserID: "u1", StartAt: now}
+
+	require.NoError(t, s.Add(ctx, due))
+	require.NoError(t, s.Add(ctx, notDue))
+	require.NoError(t, s.Add(ctx, noNotify))
+
+	events, err := s.EventsToNotify(ctx, now)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.Equal(t, "due", events[0].ID)
+
+	require.NoError(t, s.MarkNotified(ctx, "due"))
+	events, err = s.EventsToNotify(ctx, now)
+	require.NoError(t, err)
+	require.Empty(t, events)
+}
+
+func TestDeleteOldEvents(t *testing.T) {
+	s := New()
+	ctx := context.Background()
+	now := time.Now()
+
+	require.NoError(t, s.Add(ctx, makeEvent("old", now.AddDate(-2, 0, 0), time.Hour)))
+	require.NoError(t, s.Add(ctx, makeEvent("recent", now, time.Hour)))
+
+	n, err := s.DeleteOldEvents(ctx, now.AddDate(-1, 0, 0))
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	require.ErrorIs(t, s.Delete(ctx, "old"), storage.ErrEventNotFound)
+	require.NoError(t, s.Delete(ctx, "recent"))
+}
+
 func TestConcurrentAdd(_ *testing.T) {
 	s := New()
 	ctx := context.Background()

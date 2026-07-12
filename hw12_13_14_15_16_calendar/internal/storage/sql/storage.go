@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/storage"
-	_ "github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type Storage struct {
@@ -84,18 +84,38 @@ func (s *Storage) ListMonth(ctx context.Context, start time.Time) ([]storage.Eve
 	return s.listRange(ctx, start, start.AddDate(0, 1, 0))
 }
 
-func (s *Storage) listRange(ctx context.Context, from, to time.Time) ([]storage.Event, error) {
+func (s *Storage) EventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, title, start_at, duration, description, user_id, notify_at
-		 FROM events WHERE start_at >= $1 AND start_at < $2
+		 FROM events
+		 WHERE notify_at > 0
+		   AND notified_at IS NULL
+		   AND start_at - make_interval(secs => (notify_at::double precision / 1000000000)) <= $1
 		 ORDER BY start_at`,
-		from, to,
+		now,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	return scanEvents(rows)
+}
+
+func (s *Storage) MarkNotified(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE events SET notified_at = now() WHERE id = $1`, id)
+	return err
+}
+
+func (s *Storage) DeleteOldEvents(ctx context.Context, before time.Time) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM events WHERE start_at < $1`, before)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+func scanEvents(rows *sql.Rows) ([]storage.Event, error) {
 	var events []storage.Event
 	for rows.Next() {
 		var (
@@ -111,4 +131,19 @@ func (s *Storage) listRange(ctx context.Context, from, to time.Time) ([]storage.
 		events = append(events, e)
 	}
 	return events, rows.Err()
+}
+
+func (s *Storage) listRange(ctx context.Context, from, to time.Time) ([]storage.Event, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, title, start_at, duration, description, user_id, notify_at
+		 FROM events WHERE start_at >= $1 AND start_at < $2
+		 ORDER BY start_at`,
+		from, to,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanEvents(rows)
 }

@@ -1,0 +1,8 @@
+logger:
+  level: info
+
+rmq:
+  dsn: "amqp://rabbit:password@localhost:5672/"
+  exchange: calendar.notifications
+  queue: notifications
+  routingKey: notifications
