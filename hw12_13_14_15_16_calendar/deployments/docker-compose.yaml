@@ -1,1 +1,109 @@
-version: "3"
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit
+      RABBITMQ_DEFAULT_PASS: password
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+    ports:
+      - "15672:15672"
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: build/migrate/Dockerfile
+    environment:
+      DB_DSN: "host=postgres port=5432 user=postgres password=password dbname=backend sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  calendar:
+    build:
+      context: ..
+      dockerfile: build/calendar/Dockerfile
+    environment:
+      LOG_LEVEL: info
+      HTTP_PORT: "8080"
+      GRPC_PORT: "8081"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: backend
+    ports:
+      - "8888:8080"
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  calendar_scheduler:
+    build:
+      context: ..
+      dockerfile: build/calendar_scheduler/Dockerfile
+    environment:
+      LOG_LEVEL: info
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: backend
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: "5672"
+      RABBIT_USER: rabbit
+      RABBIT_PASSWORD: password
+      RMQ_EXCHANGE: calendar.notifications
+      RMQ_QUEUE: notifications
+      RMQ_ROUTING_KEY: notifications
+      SCHEDULER_SCAN_INTERVAL: 1m
+      SCHEDULER_RETENTION: 8760h
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  calendar_sender:
+    build:
+      context: ..
+      dockerfile: build/calendar_sender/Dockerfile
+    environment:
+      LOG_LEVEL: info
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: "5672"
+      RABBIT_USER: rabbit
+      RABBIT_PASSWORD: password
+      RMQ_EXCHANGE: calendar.notifications
+      RMQ_QUEUE: notifications
+      RMQ_ROUTING_KEY: notifications
+      RMQ_STATUS_QUEUE: notifications.status
+      RMQ_STATUS_ROUTING_KEY: notifications.status
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

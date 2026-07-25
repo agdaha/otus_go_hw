@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"gopkg.in/yaml.v3" //nolint: depguard
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -16,10 +16,12 @@ type LoggerConf struct {
 }
 
 type RMQConf struct {
-	DSN        string `yaml:"dsn"`
-	Exchange   string `yaml:"exchange"`
-	Queue      string `yaml:"queue"`
-	RoutingKey string `yaml:"routingKey"`
+	DSN              string `yaml:"dsn"`
+	Exchange         string `yaml:"exchange"`
+	Queue            string `yaml:"queue"`
+	RoutingKey       string `yaml:"routingKey"`
+	StatusQueue      string `yaml:"statusQueue"`
+	StatusRoutingKey string `yaml:"statusRoutingKey"`
 }
 
 func NewConfig(path string) (Config, error) {
@@ -28,7 +30,7 @@ func NewConfig(path string) (Config, error) {
 		return Config{}, err
 	}
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil { //nolint: typecheck
+	if err := yaml.Unmarshal([]byte(os.ExpandEnv(string(data))), &cfg); err != nil { //nolint:typecheck
 		return Config{}, err
 	}
 	return cfg, nil

@@ -1,0 +1,30 @@
+services:
+  rabbitmq:
+    ports: !reset []
+
+  calendar:
+    ports: !reset []
+
+  calendar_scheduler:
+    environment:
+      SCHEDULER_SCAN_INTERVAL: 2s
+
+  integration-tests:
+    build:
+      context: ..
+      dockerfile: build/integration-tests/Dockerfile
+    environment:
+      CALENDAR_HTTP_ADDR: http://calendar:8080
+      RABBIT_DSN: amqp://rabbit:password@rabbitmq:5672/
+      RMQ_EXCHANGE: calendar.notifications
+      RMQ_STATUS_QUEUE: notifications.status
+      RMQ_STATUS_ROUTING_KEY: notifications.status
+    depends_on:
+      calendar:
+        condition: service_started
+      calendar_scheduler:
+        condition: service_started
+      calendar_sender:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
