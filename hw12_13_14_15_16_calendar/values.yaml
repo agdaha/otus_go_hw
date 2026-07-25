@@ -1,22 +1,214 @@
-replicaCount: 1
+# Значения по умолчанию для чарта calendar-chart.
+# Рассчитаны на локальный кластер (minikube) с образами, собранными через `make build-img`.
 
+# Базовое имя ресурсов. По умолчанию "calendar", чтобы имена не превращались
+# в "<release>-calendar-chart"; можно переопределить целиком через fullnameOverride.
+nameOverride: "calendar"
+fullnameOverride: ""
+
+# Общие настройки образов; каждый компонент может переопределить repository/tag/registry.
 image:
-  repository: my-calendar-app
-  tag: "latest"
+  registry: ""
+  tag: "develop"
   pullPolicy: IfNotPresent
+  pullSecrets: []
 
-service:
-  type: ClusterIP
-  port: 80
+# Уровень логирования для всех процессов календаря.
+logLevel: info
 
+# Образ, из которого запускаются init-контейнеры ожидания зависимостей.
+waitImage: busybox:1.36
+
+# Имя существующего Secret с ключами postgres-password и rabbit-password.
+# Если пусто — чарт создаёт Secret сам из postgresql.auth.password / rabbitmq.auth.password.
+existingSecret: ""
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+# ---------------------------------------------------------------------------
+# Календарь: HTTP + gRPC API
+# ---------------------------------------------------------------------------
+calendar:
+  enabled: true
+  replicaCount: 2
+  image:
+    registry: ""
+    repository: calendar
+    tag: ""
+  http:
+    port: 8080
+  grpc:
+    port: 8081
+  service:
+    type: ClusterIP
+    httpPort: 80
+    grpcPort: 8081
+    # Порт на ноде при service.type=NodePort (иначе игнорируется).
+    httpNodePort: 30888
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ---------------------------------------------------------------------------
+# Планировщик: сканирует БД и публикует уведомления в RabbitMQ
+# ---------------------------------------------------------------------------
+scheduler:
+  enabled: true
+  replicaCount: 1
+  image:
+    registry: ""
+    repository: calendar_scheduler
+    tag: ""
+  # Период сканирования событий и срок хранения старых событий.
+  scanInterval: 1m
+  retention: 8760h
+  service:
+    # Headless-сервис: процесс не слушает портов, имя нужно только для DNS.
+    enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ---------------------------------------------------------------------------
+# Рассыльщик: читает уведомления из RabbitMQ и логирует их статус
+# ---------------------------------------------------------------------------
+sender:
+  enabled: true
+  replicaCount: 1
+  image:
+    registry: ""
+    repository: calendar_sender
+    tag: ""
+  service:
+    # Headless-сервис: процесс не слушает портов, имя нужно только для DNS.
+    enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ---------------------------------------------------------------------------
+# Миграции БД: Job, запускаемый как helm-хук после install/upgrade
+# ---------------------------------------------------------------------------
+migrate:
+  enabled: true
+  image:
+    registry: ""
+    repository: calendar_migrate
+    tag: ""
+  backoffLimit: 5
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+# ---------------------------------------------------------------------------
+# Настройки очередей RabbitMQ (общие для планировщика и рассыльщика)
+# ---------------------------------------------------------------------------
+rmq:
+  exchange: calendar.notifications
+  queue: notifications
+  routingKey: notifications
+  statusQueue: notifications.status
+  statusRoutingKey: notifications.status
+
+# ---------------------------------------------------------------------------
+# PostgreSQL. enabled=false — использовать внешнюю БД из postgresql.external.
+# ---------------------------------------------------------------------------
+postgresql:
+  enabled: true
+  image:
+    registry: ""
+    repository: postgres
+    tag: "16-alpine"
+  auth:
+    username: postgres
+    password: password
+    database: backend
+  service:
+    port: 5432
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  external:
+    host: ""
+    port: 5432
+
+# ---------------------------------------------------------------------------
+# RabbitMQ. enabled=false — использовать внешний брокер из rabbitmq.external.
+# ---------------------------------------------------------------------------
+rabbitmq:
+  enabled: true
+  image:
+    registry: ""
+    repository: rabbitmq
+    tag: "3-management-alpine"
+  auth:
+    username: rabbit
+    password: password
+  service:
+    amqpPort: 5672
+    managementPort: 15672
+  persistence:
+    enabled: false
+    size: 1Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  external:
+    host: ""
+    port: 5672
+
+# ---------------------------------------------------------------------------
+# Ingress для HTTP API календаря
+# ---------------------------------------------------------------------------
 ingress:
-  enabled: false
+  enabled: true
+  className: nginx
   annotations: {}
   hosts:
-    - host: chart-example.local
-      paths: []
+    - host: calendar.local
+      paths:
+        - path: /
+          pathType: Prefix
   tls: []
-
-resources: {}
-nodeSelector: {}
-affinity: {}

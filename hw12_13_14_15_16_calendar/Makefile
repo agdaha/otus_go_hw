@@ -6,6 +6,7 @@ BIN_MIGRATE := "./bin/migrate"
 DOCKER_IMG_CALENDAR := calendar:develop
 DOCKER_IMG_SCHEDULER := calendar_scheduler:develop
 DOCKER_IMG_SENDER := calendar_sender:develop
+DOCKER_IMG_MIGRATE := calendar_migrate:develop
 
 COMPOSE := docker compose -f deployments/docker-compose.yaml
 COMPOSE_TEST := docker compose -p calendar_integration_tests -f deployments/docker-compose.yaml -f deployments/docker-compose.test.yaml
@@ -86,6 +87,7 @@ build-img:
 	docker build --build-arg=LDFLAGS="$(LDFLAGS)" -t $(DOCKER_IMG_CALENDAR) -f build/calendar/Dockerfile .
 	docker build --build-arg=LDFLAGS="$(LDFLAGS)" -t $(DOCKER_IMG_SCHEDULER) -f build/calendar_scheduler/Dockerfile .
 	docker build --build-arg=LDFLAGS="$(LDFLAGS)" -t $(DOCKER_IMG_SENDER) -f build/calendar_sender/Dockerfile .
+	docker build -t $(DOCKER_IMG_MIGRATE) -f build/migrate/Dockerfile .
 
 up:
 	$(COMPOSE) up --build -d
@@ -99,6 +101,35 @@ integration-tests:
 	$(COMPOSE_TEST) down -v; \
 	exit $$code
 
+#Kubernetes / Helm
+HELM_RELEASE ?= calendar
+HELM_NAMESPACE ?= calendar
+HELM_CHART := .
+
+# Загрузить локально собранные образы в кластер minikube (в нём нет доступа к докер-демону хоста).
+minikube-load: build-img
+	minikube image load $(DOCKER_IMG_CALENDAR)
+	minikube image load $(DOCKER_IMG_SCHEDULER)
+	minikube image load $(DOCKER_IMG_SENDER)
+	minikube image load $(DOCKER_IMG_MIGRATE)
+
+helm-lint:
+	helm lint $(HELM_CHART)
+
+helm-template:
+	helm template $(HELM_RELEASE) $(HELM_CHART) --namespace $(HELM_NAMESPACE)
+
+helm-install:
+	helm upgrade --install $(HELM_RELEASE) $(HELM_CHART) \
+		--namespace $(HELM_NAMESPACE) --create-namespace \
+		--wait --timeout 5m
+
+helm-uninstall:
+	helm uninstall $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
+
+helm-status:
+	kubectl get all,ingress,pvc --namespace $(HELM_NAMESPACE)
+
 version: build
 	$(BIN) version
 
@@ -111,4 +142,5 @@ install-lint-deps:
 lint: install-lint-deps
 	golangci-lint run ./...
 
-.PHONY: install-proto-deps generate build run run-scheduler run-sender build-img up down integration-tests version test lint
+.PHONY: install-proto-deps generate build run run-scheduler run-sender build-img up down integration-tests \
+	minikube-load helm-lint helm-template helm-install helm-uninstall helm-status version test lint

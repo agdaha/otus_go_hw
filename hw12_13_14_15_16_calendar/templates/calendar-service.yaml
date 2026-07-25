@@ -1,0 +1,24 @@
+{{- if .Values.calendar.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "calendar.fullname" . }}-api
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "api") | nindent 4 }}
+spec:
+  type: {{ .Values.calendar.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.calendar.service.httpPort }}
+      targetPort: http
+      protocol: TCP
+      {{- if and (eq .Values.calendar.service.type "NodePort") .Values.calendar.service.httpNodePort }}
+      nodePort: {{ .Values.calendar.service.httpNodePort }}
+      {{- end }}
+    - name: grpc
+      port: {{ .Values.calendar.service.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    {{- include "calendar.selectorLabels" (dict "top" . "component" "api") | nindent 4 }}
+{{- end }}

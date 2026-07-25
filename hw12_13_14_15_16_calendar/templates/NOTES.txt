@@ -1,0 +1,39 @@
+Релиз {{ .Release.Name }} развёрнут в namespace {{ .Release.Namespace }}.
+
+Компоненты:
+{{- if .Values.calendar.enabled }}
+  * {{ include "calendar.fullname" . }}-api        — HTTP :{{ .Values.calendar.http.port }} / gRPC :{{ .Values.calendar.grpc.port }} ({{ .Values.calendar.replicaCount }} реплик)
+{{- end }}
+{{- if .Values.scheduler.enabled }}
+  * {{ include "calendar.fullname" . }}-scheduler  — сканирование раз в {{ .Values.scheduler.scanInterval }}
+{{- end }}
+{{- if .Values.sender.enabled }}
+  * {{ include "calendar.fullname" . }}-sender     — очередь {{ .Values.rmq.queue }}
+{{- end }}
+{{- if .Values.postgresql.enabled }}
+  * {{ include "calendar.fullname" . }}-postgres   — БД {{ .Values.postgresql.auth.database }}
+{{- end }}
+{{- if .Values.rabbitmq.enabled }}
+  * {{ include "calendar.fullname" . }}-rabbitmq   — AMQP :{{ .Values.rabbitmq.service.amqpPort }}, UI :{{ .Values.rabbitmq.service.managementPort }}
+{{- end }}
+
+Как обратиться к HTTP API:
+{{- if .Values.ingress.enabled }}
+
+  1. Через Ingress (добавьте хост в /etc/hosts, IP берётся из `minikube ip`):
+{{- range .Values.ingress.hosts }}
+{{- $host := .host }}
+{{- range .paths }}
+     http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host }}{{ .path }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+  2. Через port-forward:
+
+     kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "calendar.fullname" . }}-api 8888:{{ .Values.calendar.service.httpPort }}
+     curl "http://localhost:8888/events/day?userID=1&date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+Статус миграций:
+
+  kubectl --namespace {{ .Release.Namespace }} logs job/{{ include "calendar.fullname" . }}-migrate
