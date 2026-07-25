@@ -1,0 +1,28 @@
+{{- if .Values.scheduler.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "calendar.fullname" . }}-scheduler-config
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "scheduler") | nindent 4 }}
+data:
+  scheduler_config.yaml: |
+    logger:
+      level: {{ .Values.logLevel }}
+
+    storage:
+      type: sql
+
+    db:
+      dsn: "{{ include "calendar.postgres.dsn" . }}"
+
+    rmq:
+      dsn: "{{ include "calendar.rabbitmq.dsn" . }}"
+      exchange: {{ .Values.rmq.exchange }}
+      queue: {{ .Values.rmq.queue }}
+      routingKey: {{ .Values.rmq.routingKey }}
+
+    scheduler:
+      scanInterval: {{ .Values.scheduler.scanInterval }}
+      retention: {{ .Values.scheduler.retention }}
+{{- end }}

@@ -1,0 +1,38 @@
+{{- if .Values.migrate.enabled }}
+{{/*
+Миграции выполняются одноразовым Job'ом как helm-хук: после install/upgrade,
+когда сервис PostgreSQL уже создан. hook-delete-policy удаляет предыдущий Job
+перед созданием нового, иначе upgrade упёрся бы в неизменяемость spec Job'а.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "calendar.fullname" . }}-migrate
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "migrate") | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migrate.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "calendar.selectorLabels" (dict "top" . "component" "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      {{- include "calendar.imagePullSecrets" . | nindent 6 }}
+      initContainers:
+        {{- include "calendar.waitForPostgres" . | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "calendar.image" (dict "top" . "image" .Values.migrate.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            {{- include "calendar.postgresPasswordEnv" . | nindent 12 }}
+            - name: DB_DSN
+              value: "{{ include "calendar.postgres.dsnEnv" . }}"
+          resources:
+            {{- toYaml .Values.migrate.resources | nindent 12 }}
+{{- end }}

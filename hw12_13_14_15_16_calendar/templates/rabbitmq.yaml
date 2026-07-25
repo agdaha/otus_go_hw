@@ -1,0 +1,105 @@
+{{- if .Values.rabbitmq.enabled }}
+{{- if .Values.rabbitmq.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "calendar.fullname" . }}-rabbitmq-data
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "rabbitmq") | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.rabbitmq.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.rabbitmq.persistence.size }}
+  {{- with .Values.rabbitmq.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "calendar.fullname" . }}-rabbitmq
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "rabbitmq") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "calendar.selectorLabels" (dict "top" . "component" "rabbitmq") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "calendar.selectorLabels" (dict "top" . "component" "rabbitmq") | nindent 8 }}
+    spec:
+      {{- include "calendar.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: rabbitmq
+          image: {{ include "calendar.image" (dict "top" . "image" .Values.rabbitmq.image) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: {{ .Values.rabbitmq.auth.username | quote }}
+            - name: RABBIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "calendar.secretName" . }}
+                  key: rabbit-password
+            - name: RABBITMQ_DEFAULT_PASS
+              value: "$(RABBIT_PASSWORD)"
+          ports:
+            - name: amqp
+              containerPort: 5672
+              protocol: TCP
+            - name: management
+              containerPort: 15672
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+          resources:
+            {{- toYaml .Values.rabbitmq.resources | nindent 12 }}
+      volumes:
+        - name: data
+        {{- if .Values.rabbitmq.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "calendar.fullname" . }}-rabbitmq-data
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "calendar.fullname" . }}-rabbitmq
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "rabbitmq") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: amqp
+      port: {{ .Values.rabbitmq.service.amqpPort }}
+      targetPort: amqp
+      protocol: TCP
+    - name: management
+      port: {{ .Values.rabbitmq.service.managementPort }}
+      targetPort: management
+      protocol: TCP
+  selector:
+    {{- include "calendar.selectorLabels" (dict "top" . "component" "rabbitmq") | nindent 4 }}
+{{- end }}

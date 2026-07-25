@@ -1,0 +1,26 @@
+{{- if .Values.calendar.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "calendar.fullname" . }}-api-config
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "api") | nindent 4 }}
+data:
+  config.yaml: |
+    logger:
+      level: {{ .Values.logLevel }}
+
+    http:
+      host: "0.0.0.0"
+      port: "{{ .Values.calendar.http.port }}"
+
+    grpc:
+      host: "0.0.0.0"
+      port: "{{ .Values.calendar.grpc.port }}"
+
+    storage:
+      type: sql
+
+    db:
+      dsn: "{{ include "calendar.postgres.dsn" . }}"
+{{- end }}
