@@ -1,7 +1,14 @@
 BIN := "./bin/calendar"
 BIN_SCHEDULER := "./bin/calendar_scheduler"
 BIN_SENDER := "./bin/calendar_sender"
-DOCKER_IMG="calendar:develop"
+BIN_MIGRATE := "./bin/migrate"
+
+DOCKER_IMG_CALENDAR := calendar:develop
+DOCKER_IMG_SCHEDULER := calendar_scheduler:develop
+DOCKER_IMG_SENDER := calendar_sender:develop
+
+COMPOSE := docker compose -f deployments/docker-compose.yaml
+COMPOSE_TEST := docker compose -p calendar_integration_tests -f deployments/docker-compose.yaml -f deployments/docker-compose.test.yaml
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
@@ -28,7 +35,7 @@ run-postgres:
 	-e POSTGRES_DB=$(POSTGRES_DB) \
 	-p $(POSTGRES_PORT):5432 \
 	-v postgres-data:/var/lib/postgresql/data \
-	postgres:latest
+	postgres:16-alpine
 
 run-rabbit:
 	docker run -d --name $(RABBIT_CONTAINER) \
@@ -64,6 +71,7 @@ build:
 	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
 	go build -v -o $(BIN_SCHEDULER) -ldflags "$(LDFLAGS)" ./cmd/calendar_scheduler
 	go build -v -o $(BIN_SENDER) -ldflags "$(LDFLAGS)" ./cmd/calendar_sender
+	go build -v -o $(BIN_MIGRATE) ./cmd/migrate
 
 run: build
 	$(BIN) -config ./configs/config.yaml
@@ -75,13 +83,21 @@ run-sender: build
 	$(BIN_SENDER) -config ./configs/sender_config.yaml
 
 build-img:
-	docker build \
-		--build-arg=LDFLAGS="$(LDFLAGS)" \
-		-t $(DOCKER_IMG) \
-		-f build/Dockerfile .
+	docker build --build-arg=LDFLAGS="$(LDFLAGS)" -t $(DOCKER_IMG_CALENDAR) -f build/calendar/Dockerfile .
+	docker build --build-arg=LDFLAGS="$(LDFLAGS)" -t $(DOCKER_IMG_SCHEDULER) -f build/calendar_scheduler/Dockerfile .
+	docker build --build-arg=LDFLAGS="$(LDFLAGS)" -t $(DOCKER_IMG_SENDER) -f build/calendar_sender/Dockerfile .
 
-run-img: build-img
-	docker run $(DOCKER_IMG)
+up:
+	$(COMPOSE) up --build -d
+
+down:
+	$(COMPOSE) down -v
+
+integration-tests:
+	$(COMPOSE_TEST) up --build --no-attach migrate --abort-on-container-exit --exit-code-from integration-tests; \
+	code=$$?; \
+	$(COMPOSE_TEST) down -v; \
+	exit $$code
 
 version: build
 	$(BIN) version
@@ -95,4 +111,4 @@ install-lint-deps:
 lint: install-lint-deps
 	golangci-lint run ./...
 
-.PHONY: install-proto-deps generate build run run-scheduler run-sender build-img run-img version test lint
+.PHONY: install-proto-deps generate build run run-scheduler run-sender build-img up down integration-tests version test lint

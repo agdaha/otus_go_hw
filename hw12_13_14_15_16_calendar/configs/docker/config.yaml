@@ -1,0 +1,16 @@
+logger:
+  level: ${LOG_LEVEL}
+
+http:
+  host: "0.0.0.0"
+  port: "${HTTP_PORT}"
+
+grpc:
+  host: "0.0.0.0"
+  port: "${GRPC_PORT}"
+
+storage:
+  type: sql
+
+db:
+  dsn: "host=${POSTGRES_HOST} port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable"

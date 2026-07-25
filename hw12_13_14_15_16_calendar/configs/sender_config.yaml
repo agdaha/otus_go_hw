@@ -6,3 +6,5 @@ rmq:
   exchange: calendar.notifications
   queue: notifications
   routingKey: notifications
+  statusQueue: notifications.status
+  statusRoutingKey: notifications.status
