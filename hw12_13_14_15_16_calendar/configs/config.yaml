@@ -1,5 +1,17 @@
-[logger]
-level = "INFO"
+logger:
+  level: info
 
-# TODO
-# ...
+http:
+  host: localhost
+  port: "8080"
+
+grpc:
+  host: localhost
+  port: "8081"
+
+
+storage:
+  type: memory
+
+db:
+  dsn: "host=localhost port=5435 user=postgres password=password dbname=bcknd_calendar sslmode=disable"

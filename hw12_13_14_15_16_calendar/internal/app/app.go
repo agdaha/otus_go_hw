@@ -2,25 +2,50 @@ package app
 
 import (
 	"context"
+	"time"
+
+	"github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/storage"
 )
 
-type App struct { // TODO
+type Logger interface {
+	Info(msg string)
+	Warn(msg string)
+	Error(msg string)
+	Debug(msg string)
+}
+type App struct {
+	logger  Logger
+	storage storage.Storage
 }
 
-type Logger interface { // TODO
+func New(logger Logger, storage storage.Storage) *App {
+	return &App{logger: logger, storage: storage}
 }
 
-type Storage interface { // TODO
-}
-
-func New(logger Logger, storage Storage) *App {
-	return &App{}
-}
-
-func (a *App) CreateEvent(ctx context.Context, id, title string) error {
-	// TODO
+func (a *App) CreateEvent(ctx context.Context, event storage.Event) error {
+	if err := a.storage.Add(ctx, event); err != nil {
+		return err
+	}
+	a.logger.Info("event created: " + event.ID)
 	return nil
-	// return a.storage.CreateEvent(storage.Event{ID: id, Title: title})
 }
 
-// TODO
+func (a *App) UpdateEvent(ctx context.Context, event storage.Event) error {
+	return a.storage.Update(ctx, event)
+}
+
+func (a *App) DeleteEvent(ctx context.Context, id string) error {
+	return a.storage.Delete(ctx, id)
+}
+
+func (a *App) ListDayEvents(ctx context.Context, date time.Time) ([]storage.Event, error) {
+	return a.storage.ListDay(ctx, date)
+}
+
+func (a *App) ListWeekEvents(ctx context.Context, start time.Time) ([]storage.Event, error) {
+	return a.storage.ListWeek(ctx, start)
+}
+
+func (a *App) ListMonthEvents(ctx context.Context, start time.Time) ([]storage.Event, error) {
+	return a.storage.ListMonth(ctx, start)
+}
