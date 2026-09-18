@@ -1,0 +1,24 @@
+# Чарт лежит в корне репозитория, поэтому исключаем из пакета всё,
+# что не относится к чарту (исходники, тесты, сборочные файлы).
+.git/
+.github/
+.golangci.yml
+.idea/
+.vscode/
+*.tgz
+api/
+bin/
+build/
+cmd/
+configs/
+deployments/
+docs/
+internal/
+logs/
+migrations/
+tests/
+go.mod
+go.sum
+Makefile
+CLAUDE.md
+README.md

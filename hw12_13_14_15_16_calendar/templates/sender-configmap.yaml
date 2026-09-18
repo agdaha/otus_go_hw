@@ -1,0 +1,20 @@
+{{- if .Values.sender.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "calendar.fullname" . }}-sender-config
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "sender") | nindent 4 }}
+data:
+  sender_config.yaml: |
+    logger:
+      level: {{ .Values.logLevel }}
+
+    rmq:
+      dsn: "{{ include "calendar.rabbitmq.dsn" . }}"
+      exchange: {{ .Values.rmq.exchange }}
+      queue: {{ .Values.rmq.queue }}
+      routingKey: {{ .Values.rmq.routingKey }}
+      statusQueue: {{ .Values.rmq.statusQueue }}
+      statusRoutingKey: {{ .Values.rmq.statusRoutingKey }}
+{{- end }}

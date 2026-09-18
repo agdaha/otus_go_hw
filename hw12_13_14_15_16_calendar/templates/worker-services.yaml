@@ -1,0 +1,32 @@
+{{/*
+Планировщик и рассыльщик не слушают сетевых портов, поэтому для них создаются
+headless-сервисы: они не балансируют трафик, но дают стабильные DNS-имена подов
+и единообразную схему ресурсов для всех процессов календаря.
+*/}}
+{{- if and .Values.scheduler.enabled .Values.scheduler.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "calendar.fullname" . }}-scheduler
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "scheduler") | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    {{- include "calendar.selectorLabels" (dict "top" . "component" "scheduler") | nindent 4 }}
+{{- end }}
+---
+{{- if and .Values.sender.enabled .Values.sender.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "calendar.fullname" . }}-sender
+  labels:
+    {{- include "calendar.labels" (dict "top" . "component" "sender") | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    {{- include "calendar.selectorLabels" (dict "top" . "component" "sender") | nindent 4 }}
+{{- end }}
