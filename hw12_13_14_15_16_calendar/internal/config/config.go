@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"gopkg.in/yaml.v3" //nolint: depguard
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -28,6 +28,7 @@ type GRPCConf struct {
 	Port string `yaml:"port"`
 }
 
+// StorageConf selects the storage backend: "memory" (default) or "sql".
 type StorageConf struct {
 	Type string `yaml:"type"`
 }
@@ -42,7 +43,7 @@ func NewConfig(path string) (Config, error) {
 		return Config{}, err
 	}
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil { //nolint: typecheck
+	if err := yaml.Unmarshal([]byte(os.ExpandEnv(string(data))), &cfg); err != nil { //nolint:typecheck
 		return Config{}, err
 	}
 	return cfg, nil

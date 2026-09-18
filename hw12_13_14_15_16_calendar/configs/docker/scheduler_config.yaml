@@ -1,0 +1,18 @@
+logger:
+  level: ${LOG_LEVEL}
+
+storage:
+  type: sql
+
+db:
+  dsn: "host=${POSTGRES_HOST} port=${POSTGRES_PORT} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable"
+
+rmq:
+  dsn: "amqp://${RABBIT_USER}:${RABBIT_PASSWORD}@${RABBIT_HOST}:${RABBIT_PORT}/"
+  exchange: ${RMQ_EXCHANGE}
+  queue: ${RMQ_QUEUE}
+  routingKey: ${RMQ_ROUTING_KEY}
+
+scheduler:
+  scanInterval: ${SCHEDULER_SCAN_INTERVAL}
+  retention: ${SCHEDULER_RETENTION}

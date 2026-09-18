@@ -34,14 +34,18 @@ func main() {
 func run(cfg Config) error {
 	logg := logger.New(cfg.Logger.Level)
 
-	client := buildRMQClient(cfg)
+	client := buildRMQClient(cfg.RMQ.DSN, cfg.RMQ.Exchange, cfg.RMQ.Queue, cfg.RMQ.RoutingKey)
+	statusClient := buildRMQClient(cfg.RMQ.DSN, cfg.RMQ.Exchange, cfg.RMQ.StatusQueue, cfg.RMQ.StatusRoutingKey)
 	defer func() {
 		if err := client.Close(); err != nil {
 			logg.Error("rmq close: " + err.Error())
 		}
+		if err := statusClient.Close(); err != nil {
+			logg.Error("rmq status close: " + err.Error())
+		}
 	}()
 
-	snd := sender.New(logg, client)
+	snd := sender.New(logg, client, statusClient)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
@@ -50,8 +54,8 @@ func run(cfg Config) error {
 	return snd.Run(ctx)
 }
 
-func buildRMQClient(cfg Config) *rmq.Client {
-	client, err := rmq.Dial(cfg.RMQ.DSN, cfg.RMQ.Exchange, cfg.RMQ.Queue, cfg.RMQ.RoutingKey)
+func buildRMQClient(dsn, exchange, queue, routingKey string) *rmq.Client {
+	client, err := rmq.Dial(dsn, exchange, queue, routingKey)
 	if err != nil {
 		log.Fatalf("rmq dial: %v", err)
 	}

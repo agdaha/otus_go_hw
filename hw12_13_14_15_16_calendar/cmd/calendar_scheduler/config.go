@@ -44,7 +44,7 @@ func NewConfig(path string) (Config, error) {
 		return Config{}, err
 	}
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil { //nolint: typecheck
+	if err := yaml.Unmarshal([]byte(os.ExpandEnv(string(data))), &cfg); err != nil { //nolint:typecheck
 		return Config{}, err
 	}
 	return cfg, nil

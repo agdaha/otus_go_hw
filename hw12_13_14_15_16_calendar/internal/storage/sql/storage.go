@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/agdaha/otus_go_hw/hw12_13_14_15_calendar/internal/storage"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver
 )
 
 type Storage struct {
@@ -35,16 +35,46 @@ func (s *Storage) Close(_ context.Context) error {
 }
 
 func (s *Storage) Add(ctx context.Context, e storage.Event) error {
-	_, err := s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	busy, err := isBusy(ctx, tx, e)
+	if err != nil {
+		return err
+	}
+	if busy {
+		return storage.ErrDateBusy
+	}
+
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO events (id, title, start_at, duration, description, user_id, notify_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		e.ID, e.Title, e.StartAt, int64(e.Duration), e.Description, e.UserID, int64(e.NotifyAt),
-	)
-	return err
+	); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Storage) Update(ctx context.Context, e storage.Event) error {
-	res, err := s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	busy, err := isBusy(ctx, tx, e)
+	if err != nil {
+		return err
+	}
+	if busy {
+		return storage.ErrDateBusy
+	}
+
+	res, err := tx.ExecContext(ctx,
 		`UPDATE events
 		 SET title=$2, start_at=$3, duration=$4, description=$5, user_id=$6, notify_at=$7
 		 WHERE id=$1`,
@@ -53,11 +83,28 @@ func (s *Storage) Update(ctx context.Context, e storage.Event) error {
 	if err != nil {
 		return err
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
 	if n == 0 {
 		return storage.ErrEventNotFound
 	}
-	return nil
+	return tx.Commit()
+}
+
+func isBusy(ctx context.Context, tx *sql.Tx, e storage.Event) (bool, error) {
+	var exists bool
+	err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS(
+			SELECT 1 FROM events
+			WHERE id <> $1
+			  AND start_at < $2::timestamptz + make_interval(secs => ($3::double precision / 1000000000))
+			  AND $2::timestamptz < start_at + make_interval(secs => (duration::double precision / 1000000000))
+		)`,
+		e.ID, e.StartAt, int64(e.Duration),
+	).Scan(&exists)
+	return exists, err
 }
 
 func (s *Storage) Delete(ctx context.Context, id string) error {

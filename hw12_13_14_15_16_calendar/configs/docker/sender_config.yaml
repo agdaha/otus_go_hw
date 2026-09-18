@@ -1,0 +1,10 @@
+logger:
+  level: ${LOG_LEVEL}
+
+rmq:
+  dsn: "amqp://${RABBIT_USER}:${RABBIT_PASSWORD}@${RABBIT_HOST}:${RABBIT_PORT}/"
+  exchange: ${RMQ_EXCHANGE}
+  queue: ${RMQ_QUEUE}
+  routingKey: ${RMQ_ROUTING_KEY}
+  statusQueue: ${RMQ_STATUS_QUEUE}
+  statusRoutingKey: ${RMQ_STATUS_ROUTING_KEY}

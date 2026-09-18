@@ -30,6 +30,19 @@ func (c *stubConsumer) Consume(_ context.Context) (<-chan rmq.Message, error) {
 	return c.messages, nil
 }
 
+type stubStatusPublisher struct {
+	published [][]byte
+	err       error
+}
+
+func (p *stubStatusPublisher) Publish(_ context.Context, body []byte) error {
+	if p.err != nil {
+		return p.err
+	}
+	p.published = append(p.published, body)
+	return nil
+}
+
 func TestSenderHandlesNotification(t *testing.T) {
 	body, err := notification.Notification{
 		EventID: "1", Title: "t", EventAt: time.Now(), UserID: "u1",
@@ -42,12 +55,19 @@ func TestSenderHandlesNotification(t *testing.T) {
 	close(messages)
 
 	logger := &capturingLogger{}
-	s := New(logger, &stubConsumer{messages: messages})
+	statusPub := &stubStatusPublisher{}
+	s := New(logger, &stubConsumer{messages: messages}, statusPub)
 
 	require.NoError(t, s.Run(context.Background()))
 	require.True(t, acked)
 	require.Len(t, logger.infos, 1)
 	require.Contains(t, logger.infos[0], "event=1")
+
+	require.Len(t, statusPub.published, 1)
+	status, err := notification.UnmarshalStatus(statusPub.published[0])
+	require.NoError(t, err)
+	require.Equal(t, "1", status.EventID)
+	require.Equal(t, notification.StatusSent, status.Status)
 }
 
 func TestSenderInvalidPayloadNacks(t *testing.T) {
@@ -57,21 +77,23 @@ func TestSenderInvalidPayloadNacks(t *testing.T) {
 	close(messages)
 
 	logger := &capturingLogger{}
-	s := New(logger, &stubConsumer{messages: messages})
+	statusPub := &stubStatusPublisher{}
+	s := New(logger, &stubConsumer{messages: messages}, statusPub)
 
 	require.NoError(t, s.Run(context.Background()))
 	require.True(t, nacked)
 	require.NotEmpty(t, logger.errors)
+	require.Empty(t, statusPub.published)
 }
 
 func TestSenderConsumeError(t *testing.T) {
-	s := New(&capturingLogger{}, &stubConsumer{err: context.DeadlineExceeded})
+	s := New(&capturingLogger{}, &stubConsumer{err: context.DeadlineExceeded}, &stubStatusPublisher{})
 	require.ErrorIs(t, s.Run(context.Background()), context.DeadlineExceeded)
 }
 
 func TestSenderStopsOnContextDone(t *testing.T) {
 	messages := make(chan rmq.Message)
-	s := New(&capturingLogger{}, &stubConsumer{messages: messages})
+	s := New(&capturingLogger{}, &stubConsumer{messages: messages}, &stubStatusPublisher{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
 	defer cancel()
